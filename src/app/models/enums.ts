@@ -1,0 +1,13 @@
+export type Rol = 'ESTUDIANTE' | 'PROFESOR' | 'ADMINISTRATIVO' | 'COORDINADOR';
+
+export type EstadoUsuario = 'ACTIVO' | 'INACTIVO';
+
+export type TipoSolicitud = 'QUEJA' | 'RECLAMO' | 'SUGERENCIA' | 'PETICION' | 'FELICITACION';
+
+export type EstadoSolicitud = 'REGISTRADA' | 'CLASIFICADA' | 'EN_ATENCION' | 'ATENDIDA' | 'CERRADA';
+
+export type Prioridad = 'BAJA' | 'MEDIA' | 'ALTA';
+
+export type CanalOrigen = 'PRESENCIAL' | 'TELEFONICO' | 'CORREO_ELECTRONICO' | 'APLICACION_WEB' | 'APLICACION_MOVIL';
+
+export type AccionHistorial = 'REGISTRAR_SOLICITUD' | 'CLASIFICAR_SOLICITUD' | 'PRIORIZAR_SOLICITUD' | 'ASIGNAR_RESPONSABLE' | 'MARCAR_ATENDIDA' | 'CERRAR_SOLICITUD';
