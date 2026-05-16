@@ -2,6 +2,12 @@
 
 Frontend del sistema de **Peticiones, Quejas, Reclamos y Sugerencias (PQRS)** para la Universidad del Quindío, desarrollado con **Angular 21.1.2**.
 
+## Creadores
+
+- **Alejandro Marín Hernández**
+- **Maria Jose Vásquez**
+- **Diego**
+
 ## Servidor de desarrollo
 
 ```bash
