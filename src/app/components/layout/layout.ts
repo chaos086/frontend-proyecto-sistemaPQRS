@@ -1,15 +1,19 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgFor, NgIf } from '@angular/common';
+import { Toast } from 'primeng/toast';
+import { ConfirmDialog } from 'primeng/confirmdialog';
 import { AuthService } from '../../services/auth.service';
 
 interface MenuItem { label: string; route: string; icon: string; badge?: number; }
 
 @Component({
   selector: 'app-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgFor, NgIf],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgFor, NgIf, Toast, ConfirmDialog],
   template: `
     <div class="layout">
+      <p-toast position="top-right" [breakpoints]="{'920px': {width: '90%'}}" />
+      <p-confirmDialog />
       <!-- SIDEBAR -->
       <aside class="sidebar">
         <div class="sidebar-top">

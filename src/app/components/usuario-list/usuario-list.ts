@@ -1,6 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { Paginator } from 'primeng/paginator';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
@@ -8,13 +10,14 @@ import { ROL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-usuario-list',
-  imports: [NgFor, NgIf, RouterLink],
+  imports: [NgFor, NgIf, RouterLink, Paginator],
+  providers: [MessageService],
   template: `
     <div class="page-card">
       <div class="page-header">
         <div>
           <h2 class="page-title">Usuarios</h2>
-          <p class="page-sub">Gestión de usuarios del sistema</p>
+          <p class="page-sub">Gesti\u00F3n de usuarios del sistema</p>
         </div>
         <a routerLink="/crear-usuario" class="btn-primary">+ Nuevo Usuario</a>
       </div>
@@ -28,19 +31,20 @@ import { ROL_LABELS } from '../../models/enums';
             <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let u of usuarios">
+            <tr *ngFor="let u of usuariosPaginados">
               <td class="td-bold">{{ u.nombre }}</td>
               <td class="td-muted">{{ u.email }}</td>
               <td><span class="badge badge-purple">{{ rolLabel(u.rol) }}</span></td>
               <td><span class="badge" [class]="u.estado === 'ACTIVO' ? 'badge-green' : 'badge-gray'">{{ u.estado }}</span></td>
               <td>
-                <button *ngIf="u.estado === 'ACTIVO' && esCoordinador()" (click)="desactivar(u)" class="btn-action btn-danger">Desactivar</button>
+                <button *ngIf="u.estado === 'ACTIVO' && esCoordinador()" (click)="confirmarDesactivar(u)" class="btn-action btn-danger">Desactivar</button>
                 <button *ngIf="u.estado === 'INACTIVO' && esCoordinador()" (click)="activar(u)" class="btn-action">Activar</button>
               </td>
             </tr>
             <tr *ngIf="usuarios.length === 0"><td colspan="5" class="empty-cell">No hay usuarios registrados</td></tr>
           </tbody>
         </table>
+        <p-paginator [first]="first" [rows]="rows" [totalRecords]="usuarios.length" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="paginar($event)" />
       </div>
     </div>
   `,
@@ -73,10 +77,24 @@ import { ROL_LABELS } from '../../models/enums';
 export class UsuarioList implements OnInit {
   private readonly usuarioService = inject(UsuarioService);
   private readonly auth = inject(AuthService);
+  private readonly messageService = inject(MessageService);
+  private readonly confirmationService = inject(ConfirmationService);
 
   usuarios: UsuarioResponse[] = [];
   loading = true;
   error = '';
+
+  first = 0;
+  rows = 10;
+
+  get usuariosPaginados(): UsuarioResponse[] {
+    return this.usuarios.slice(this.first, this.first + this.rows);
+  }
+
+  paginar(event: any): void {
+    this.first = event.first;
+    this.rows = event.rows;
+  }
 
   ngOnInit(): void { this.cargar(); }
 
@@ -92,10 +110,26 @@ export class UsuarioList implements OnInit {
   esCoordinador(): boolean { return this.auth.hasRole('ROLE_COORDINADOR'); }
 
   activar(u: UsuarioResponse): void {
-    this.usuarioService.activar(u.id).subscribe(() => { u.estado = 'ACTIVO'; this.cargar(); });
+    this.usuarioService.activar(u.id).subscribe({
+      next: () => { this.messageService.add({ severity: 'success', summary: 'Éxito', detail: `Usuario ${u.nombre} activado` }); this.cargar(); },
+      error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo activar el usuario' })
+    });
   }
 
-  desactivar(u: UsuarioResponse): void {
-    this.usuarioService.desactivar(u.id).subscribe(() => { u.estado = 'INACTIVO'; this.cargar(); });
+  confirmarDesactivar(u: UsuarioResponse): void {
+    this.confirmationService.confirm({
+      message: `¿Está seguro de desactivar al usuario ${u.nombre}?`,
+      header: 'Confirmar desactivación',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí, desactivar',
+      rejectLabel: 'Cancelar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.usuarioService.desactivar(u.id).subscribe({
+          next: () => { this.messageService.add({ severity: 'success', summary: 'Éxito', detail: `Usuario ${u.nombre} desactivado` }); this.cargar(); },
+          error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo desactivar el usuario' })
+        });
+      }
+    });
   }
 }

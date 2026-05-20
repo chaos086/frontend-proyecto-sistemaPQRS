@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { MessageService } from 'primeng/api';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
@@ -10,6 +11,7 @@ import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
 @Component({
   selector: 'app-crear-solicitud',
   imports: [NgIf, NgFor, FormsModule, RouterLink],
+  providers: [MessageService],
   template: `
     <h2>Nueva Solicitud</h2>
     <form (ngSubmit)="onSubmit()" class="card-form">
@@ -42,7 +44,6 @@ import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
         <a routerLink="/solicitudes" class="btn-cancel">Cancelar</a>
       </div>
       <p class="error" *ngIf="error">{{ error }}</p>
-      <p class="success" *ngIf="exito">Solicitud creada exitosamente</p>
     </form>
   `,
   styles: [`
@@ -58,13 +59,13 @@ import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
     .btn-cancel { padding: .6rem 1.5rem; background: var(--slate-100); color: var(--slate-600); text-decoration: none; border-radius: 12px; font-size: .9rem; }
     .error { color: #DC2626; margin-top: .8rem; background: #FEE2E2; padding: .5rem; border-radius: 8px; }
-    .success { color: #059669; margin-top: .8rem; background: #D1FAE5; padding: .5rem; border-radius: 8px; }
   `]
 })
 export class CrearSolicitud {
   private readonly solicitudService = inject(SolicitudService);
   private readonly usuarioService = inject(UsuarioService);
   private readonly router = inject(Router);
+  private readonly messageService = inject(MessageService);
 
   usuarios: UsuarioResponse[] = [];
   solicitanteId = '';
@@ -75,7 +76,6 @@ export class CrearSolicitud {
   descripcion = '';
   enviando = false;
   error = '';
-  exito = false;
 
   errorSolicitante = '';
   errorNombre = '';
@@ -96,12 +96,16 @@ export class CrearSolicitud {
 
   onSubmit(): void {
     if (!this.validar()) return;
-    this.enviando = true; this.error = ''; this.exito = false;
+    this.enviando = true; this.error = '';
     this.solicitudService.crear({
       solicitanteId: this.solicitanteId, nombreSolicitante: this.nombreSolicitante,
       canalOrigen: this.canalOrigen as any, descripcion: this.descripcion
     }).subscribe({
-      next: () => { this.exito = true; this.enviando = false; setTimeout(() => this.router.navigateByUrl('/solicitudes'), 1500); },
+      next: () => {
+        this.enviando = false;
+        this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Solicitud creada exitosamente' });
+        setTimeout(() => this.router.navigateByUrl('/solicitudes'), 1000);
+      },
       error: e => { this.error = e.error?.message || 'Error al crear solicitud'; this.enviando = false; }
     });
   }

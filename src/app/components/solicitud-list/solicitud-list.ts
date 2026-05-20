@@ -2,6 +2,9 @@ import { Component, inject, OnInit } from '@angular/core';
 import { NgFor, NgIf, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { Paginator } from 'primeng/paginator';
+import { Tag } from 'primeng/tag';
+import { MessageService } from 'primeng/api';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
@@ -11,13 +14,14 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
 
 @Component({
   selector: 'app-solicitud-list',
-  imports: [NgFor, NgIf, DatePipe, FormsModule],
+  imports: [NgFor, NgIf, DatePipe, FormsModule, Paginator, Tag],
+  providers: [MessageService],
   template: `
     <div class="page-card">
       <div class="page-header">
         <div>
           <h2 class="page-title">Solicitudes</h2>
-          <p class="page-sub">Gestión de solicitudes PQRS</p>
+          <p class="page-sub">Gesti\u00F3n de solicitudes PQRS</p>
         </div>
         <div class="header-actions">
           <span class="count-badge" *ngIf="!loading">{{ solicitudes.length }} solicitud(es)</span>
@@ -40,9 +44,9 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of solicitudes">
+            <tr *ngFor="let s of solicitudesPaginadas">
               <td class="td-bold">{{ s.nombreSolicitante }}</td>
-              <td><span class="badge" [class]="badgeClass(s.estado)">{{ s.estado }}</span></td>
+              <td><p-tag [value]="s.estado" [severity]="tagSeverity(s.estado)" /></td>
               <td>{{ s.tipoSolicitud || '-' }}</td>
               <td>{{ s.prioridad || '-' }}</td>
               <td class="td-muted">{{ s.nombreResponsable || '-' }}</td>
@@ -52,7 +56,7 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
                   <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'priorizar')" class="btn-action">Priorizar</button>
                   <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'asignar'); cargarProfesores()" class="btn-action">Asignar</button>
                   <button *ngIf="s.estado === 'EN_ATENCION' && esResponsable(s)" (click)="abrirForm(s, 'atender')" class="btn-action">Atender</button>
-                  <button *ngIf="(s.estado === 'EN_ATENCION' || s.estado === 'ATENDIDA') && esResponsable(s)" (click)="abrirForm(s, 'cerrar')" class="btn-action">Cerrar</button>
+                  <button *ngIf="(s.estado === 'EN_ATENCION' || s.estado === 'ATENDIDA') && esResponsable(s)" (click)="confirmarCerrar(s)" class="btn-action btn-danger">Cerrar</button>
                   <button (click)="verDetalle(s)" class="btn-action btn-outline-action">Detalle</button>
                 </div>
               </td>
@@ -62,6 +66,7 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
             </tr>
           </tbody>
         </table>
+        <p-paginator [first]="first" [rows]="rows" [totalRecords]="solicitudes.length" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="paginar($event)" />
       </div>
     </div>
 
@@ -149,7 +154,7 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
         <div class="detail-grid">
           <div><strong>ID:</strong> {{ detalle.id }}</div>
           <div><strong>Solicitante:</strong> {{ detalle.nombreSolicitante }}</div>
-          <div><strong>Estado:</strong> <span class="badge" [class]="badgeClass(detalle.estado)">{{ detalle.estado }}</span></div>
+          <div><strong>Estado:</strong> <p-tag [value]="detalle.estado" [severity]="tagSeverity(detalle.estado)" /></div>
           <div><strong>Tipo:</strong> {{ detalle.tipoSolicitud || '-' }}</div>
           <div><strong>Prioridad:</strong> {{ detalle.prioridad || '-' }}</div>
           <div><strong>Responsable:</strong> {{ detalle.nombreResponsable || '-' }}</div>
@@ -195,16 +200,10 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
     .empty-cell { text-align: center; color: var(--slate-400); padding: 2rem; }
     .loading, .error { text-align: center; padding: 2rem; }
     .error { color: #DC2626; background: #FEE2E2; border-radius: 12px; border: 1px solid #FECACA; }
-    .badge { padding: .3rem .8rem; border-radius: 999px; font-size: .8rem; font-weight: 600; display: inline-block; }
-    .badge-REGISTRADA, .badge-yellow { background: #FEF3C7; color: #D97706; }
-    .badge-CLASIFICADA, .badge-blue { background: #DBEAFE; color: #2563EB; }
-    .badge-EN_ATENCION { background: #E0E7FF; color: #4F46E5; }
-    .badge-ATENDIDA, .badge-green { background: #D1FAE5; color: #059669; }
-    .badge-CERRADA, .badge-gray { background: #F1F5F9; color: #64748B; }
-    .badge-PENDIENTE { background: #FEF3C7; color: #D97706; }
     .actions-wrap { display: flex; gap: .3rem; flex-wrap: wrap; }
     .btn-action { padding: .3rem .7rem; border-radius: 8px; border: none; background: var(--purple-600); color: white; cursor: pointer; font-size: .8rem; font-weight: 500; }
     .btn-action:hover { opacity: .85; }
+    .btn-danger { background: #DC2626; }
     .btn-outline-action { background: white; color: var(--slate-600); border: 1px solid var(--slate-200); }
     .btn-outline-action:hover { background: var(--slate-50); }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
@@ -233,6 +232,7 @@ export class SolicitudList implements OnInit {
   private readonly usuarioService = inject(UsuarioService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly messageService = inject(MessageService);
 
   solicitudes: SolicitudResponse[] = [];
   profesores: UsuarioResponse[] = [];
@@ -253,6 +253,18 @@ export class SolicitudList implements OnInit {
   prioridades = PRIORIDADES;
   labelsPrioridad = PRIORIDAD_LABELS;
 
+  first = 0;
+  rows = 10;
+
+  get solicitudesPaginadas(): SolicitudResponse[] {
+    return this.solicitudes.slice(this.first, this.first + this.rows);
+  }
+
+  paginar(event: any): void {
+    this.first = event.first;
+    this.rows = event.rows;
+  }
+
   ngOnInit(): void {
     this.cargar();
     this.route.paramMap.subscribe(() => this.cargar());
@@ -261,12 +273,12 @@ export class SolicitudList implements OnInit {
   esCoordinador(): boolean { return this.auth.hasRole('ROLE_COORDINADOR'); }
   esResponsable(s: SolicitudResponse): boolean { return s.responsableId === this.auth.getUserId(); }
 
-  badgeClass(estado: string): string {
-    const map: Record<string, string> = {
-      REGISTRADA: 'badge-REGISTRADA', CLASIFICADA: 'badge-CLASIFICADA',
-      EN_ATENCION: 'badge-EN_ATENCION', ATENDIDA: 'badge-ATENDIDA', CERRADA: 'badge-CERRADA'
+  tagSeverity(estado: string): 'success' | 'info' | 'warn' | 'secondary' | 'contrast' | 'danger' {
+    const map: Record<string, 'success' | 'info' | 'warn' | 'secondary' | 'contrast' | 'danger'> = {
+      REGISTRADA: 'warn', CLASIFICADA: 'info',
+      EN_ATENCION: 'info', ATENDIDA: 'success', CERRADA: 'secondary'
     };
-    return map[estado] || 'badge-gray';
+    return map[estado] || 'secondary';
   }
 
   cargar(): void {
@@ -276,7 +288,7 @@ export class SolicitudList implements OnInit {
       : this.solicitudService.listar();
     obs.subscribe({
       next: data => { this.solicitudes = data; this.loading = false; },
-      error: () => { this.error = 'Error al cargar solicitudes. ¿El backend está corriendo?'; this.loading = false; }
+      error: () => { this.error = 'Error al cargar solicitudes. \u00BFEl backend está corriendo?'; this.loading = false; }
     });
   }
 
@@ -296,33 +308,47 @@ export class SolicitudList implements OnInit {
     return map[this.formAccion ?? ''] ?? '';
   }
 
-  private accionOk(): void { this.cerrarForm(); this.cargar(); }
-  private accionError(e: any): void { this.errorAccion = e.error?.message || 'Error en la operación'; this.cargandoAccion = false; }
+  private accionOk(msg: string): void {
+    this.cerrarForm();
+    this.messageService.add({ severity: 'success', summary: 'Éxito', detail: msg });
+    this.cargar();
+  }
+  private accionError(e: any): void {
+    this.errorAccion = e.error?.message || 'Error en la operación';
+    this.cargandoAccion = false;
+    this.messageService.add({ severity: 'error', summary: 'Error', detail: this.errorAccion });
+  }
 
   ejecutarClasificar(): void {
     this.cargandoAccion = true;
     this.solicitudService.clasificar(this.solicitudSeleccionada!.id, { tipo: this.accionData.tipo, coordinadorId: this.auth.getUserId()! })
-      .subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
+      .subscribe({ next: () => { this.cargandoAccion = false; this.accionOk('Solicitud clasificada correctamente'); }, error: e => this.accionError(e) });
   }
   ejecutarPriorizar(): void {
     this.cargandoAccion = true;
     this.solicitudService.priorizar(this.solicitudSeleccionada!.id, { prioridad: this.accionData.prioridad, justificacion: this.accionData.justificacion, coordinadorId: this.auth.getUserId()! })
-      .subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
+      .subscribe({ next: () => { this.cargandoAccion = false; this.accionOk('Prioridad asignada correctamente'); }, error: e => this.accionError(e) });
   }
   ejecutarAsignar(): void {
     this.cargandoAccion = true;
     this.solicitudService.asignarResponsable(this.solicitudSeleccionada!.id, { responsableId: this.accionData.responsableId, coordinadorId: this.auth.getUserId()! })
-      .subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
+      .subscribe({ next: () => { this.cargandoAccion = false; this.accionOk('Responsable asignado correctamente'); }, error: e => this.accionError(e) });
   }
   ejecutarAtender(): void {
     this.cargandoAccion = true;
     this.solicitudService.atender(this.solicitudSeleccionada!.id, { responsableId: this.auth.getUserId()!, observacion: this.accionData.observacion })
-      .subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
+      .subscribe({ next: () => { this.cargandoAccion = false; this.accionOk('Solicitud atendida correctamente'); }, error: e => this.accionError(e) });
   }
   ejecutarCerrar(): void {
     this.cargandoAccion = true;
     this.solicitudService.cerrar(this.solicitudSeleccionada!.id, { responsableId: this.auth.getUserId()!, observacionCierre: this.accionData.observacionCierre })
-      .subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
+      .subscribe({ next: () => { this.cargandoAccion = false; this.accionOk('Solicitud cerrada correctamente'); }, error: e => this.accionError(e) });
+  }
+  confirmarCerrar(s: SolicitudResponse): void {
+    this.solicitudSeleccionada = s;
+    this.accionData = {};
+    this.formAccion = 'cerrar';
+    this.errorAccion = '';
   }
   verDetalle(s: SolicitudResponse): void {
     this.solicitudService.obtener(s.id).subscribe(data => this.detalle = data);

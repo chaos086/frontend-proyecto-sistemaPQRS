@@ -54,3 +54,43 @@ img { max-width: 100%; vertical-align: middle; }
 ::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: 3px; }
 
 input, select, textarea, button { font-family: inherit; }
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .lower-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 992px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .sidebar { width: 240px !important; padding: 1.2rem !important; }
+  .main-content { padding: 1.5rem !important; }
+}
+@media (max-width: 768px) {
+  .layout { flex-direction: column !important; }
+  .sidebar {
+    width: 100% !important; position: static !important;
+    flex-direction: row !important; flex-wrap: wrap;
+    padding: .8rem 1rem !important; border-radius: 0 !important;
+    gap: .5rem; align-items: center;
+  }
+  .sidebar .logo-section { margin-bottom: 0 !important; }
+  .sidebar .nav-list { flex-direction: row !important; gap: .5rem !important; flex-wrap: wrap; }
+  .sidebar .nav-item { padding: .3rem .6rem !important; font-size: .8rem !important; }
+  .sidebar .nav-item span.icon { display: none; }
+  .sidebar .user-section, .sidebar .logout-btn { display: none; }
+  .main-content { padding: 1rem !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr !important; gap: .8rem !important; }
+  .stat-card { padding: 1rem !important; }
+  .stat-icon { width: 50px !important; height: 50px !important; }
+  .stat-value { font-size: 2rem !important; }
+  .table-wrapper { overflow-x: auto !important; }
+  .page-header { flex-direction: column !important; align-items: flex-start !important; gap: .8rem !important; }
+  .modal-card { min-width: auto !important; width: 90% !important; }
+  .modal-wide { min-width: auto !important; }
+  .detail-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr !important; }
+  .page-card { padding: 1rem !important; border-radius: 16px !important; }
+  .card-form { padding: 1rem !important; }
+  .header-actions { flex-wrap: wrap; }
+}
