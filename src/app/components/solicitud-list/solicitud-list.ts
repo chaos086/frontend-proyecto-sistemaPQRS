@@ -1,13 +1,13 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { NgFor, NgIf, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Paginator } from 'primeng/paginator';
 import { Tag } from 'primeng/tag';
-import { MessageService } from 'primeng/api';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
+import { NotificationService } from '../../services/notification.service';
 import type { SolicitudResponse } from '../../models/solicitud.models';
 import type { UsuarioResponse } from '../../models/usuario.models';
 import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD_LABELS } from '../../models/enums';
@@ -15,7 +15,6 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
 @Component({
   selector: 'app-solicitud-list',
   imports: [NgFor, NgIf, DatePipe, FormsModule, Paginator, Tag],
-  providers: [MessageService],
   template: `
     <div class="page-card">
       <div class="page-header">
@@ -44,7 +43,7 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of solicitudesPaginadas">
+            <tr *ngFor="let s of solicitudes">
               <td class="td-bold">{{ s.nombreSolicitante }}</td>
               <td><p-tag [value]="s.estado" [severity]="tagSeverity(s.estado)" /></td>
               <td>{{ s.tipoSolicitud || '-' }}</td>
@@ -66,7 +65,7 @@ import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD
             </tr>
           </tbody>
         </table>
-        <p-paginator [first]="first" [rows]="rows" [totalRecords]="solicitudes.length" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="paginar($event)" />
+        <p-paginator [first]="first()" [rows]="rows()" [totalRecords]="totalRecords()" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="onPageChange($event)" />
       </div>
     </div>
 
@@ -232,7 +231,7 @@ export class SolicitudList implements OnInit {
   private readonly usuarioService = inject(UsuarioService);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
-  private readonly messageService = inject(MessageService);
+  private readonly notificationService = inject(NotificationService);
 
   solicitudes: SolicitudResponse[] = [];
   profesores: UsuarioResponse[] = [];
@@ -253,17 +252,9 @@ export class SolicitudList implements OnInit {
   prioridades = PRIORIDADES;
   labelsPrioridad = PRIORIDAD_LABELS;
 
-  first = 0;
-  rows = 10;
-
-  get solicitudesPaginadas(): SolicitudResponse[] {
-    return this.solicitudes.slice(this.first, this.first + this.rows);
-  }
-
-  paginar(event: any): void {
-    this.first = event.first;
-    this.rows = event.rows;
-  }
+  readonly first = signal(0);
+  readonly rows = signal(10);
+  readonly totalRecords = signal(0);
 
   ngOnInit(): void {
     this.cargar();
@@ -283,13 +274,34 @@ export class SolicitudList implements OnInit {
 
   cargar(): void {
     this.loading = true; this.error = '';
-    const obs = this.filtroEstado
-      ? this.solicitudService.listarPorEstado(this.filtroEstado)
-      : this.solicitudService.listar();
-    obs.subscribe({
-      next: data => { this.solicitudes = data; this.loading = false; },
-      error: () => { this.error = 'Error al cargar solicitudes. \u00BFEl backend está corriendo?'; this.loading = false; }
-    });
+    const page = this.first() / this.rows();
+    const size = this.rows();
+    if (this.filtroEstado) {
+      this.solicitudService.listarPorEstado(this.filtroEstado).subscribe({
+        next: data => { this.solicitudes = data; this.totalRecords.set(data.length); this.loading = false; },
+        error: () => { this.error = 'Error al cargar solicitudes. \u00BFEl backend est\u00E1 corriendo?'; this.loading = false; }
+      });
+    } else {
+      this.solicitudService.listarPaginado(page, size).subscribe({
+        next: data => {
+          this.solicitudes = data.content;
+          this.totalRecords.set(data.totalElements);
+          this.loading = false;
+        },
+        error: () => {
+          this.solicitudService.listar().subscribe({
+            next: data => { this.solicitudes = data; this.totalRecords.set(data.length); this.loading = false; },
+            error: () => { this.error = 'Error al cargar solicitudes. \u00BFEl backend est\u00E1 corriendo?'; this.loading = false; }
+          });
+        }
+      });
+    }
+  }
+
+  onPageChange(event: any): void {
+    this.first.set(event.first);
+    this.rows.set(event.rows);
+    this.cargar();
   }
 
   cargarProfesores(): void {
@@ -310,13 +322,13 @@ export class SolicitudList implements OnInit {
 
   private accionOk(msg: string): void {
     this.cerrarForm();
-    this.messageService.add({ severity: 'success', summary: 'Éxito', detail: msg });
+    this.notificationService.success(msg);
     this.cargar();
   }
   private accionError(e: any): void {
-    this.errorAccion = e.error?.message || 'Error en la operación';
+    this.errorAccion = e.error?.message || 'Error en la operaci\u00F3n';
     this.cargandoAccion = false;
-    this.messageService.add({ severity: 'error', summary: 'Error', detail: this.errorAccion });
+    this.notificationService.error(this.errorAccion);
   }
 
   ejecutarClasificar(): void {

@@ -2,8 +2,8 @@ import { Component, inject } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { MessageService } from 'primeng/api';
 import { SolicitudService } from '../../services/solicitud.service';
+import { NotificationService } from '../../services/notification.service';
 import { UsuarioService } from '../../services/usuario.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
 import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
@@ -11,7 +11,6 @@ import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
 @Component({
   selector: 'app-crear-solicitud',
   imports: [NgIf, NgFor, FormsModule, RouterLink],
-  providers: [MessageService],
   template: `
     <h2>Nueva Solicitud</h2>
     <form (ngSubmit)="onSubmit()" class="card-form">
@@ -65,7 +64,7 @@ export class CrearSolicitud {
   private readonly solicitudService = inject(SolicitudService);
   private readonly usuarioService = inject(UsuarioService);
   private readonly router = inject(Router);
-  private readonly messageService = inject(MessageService);
+  private readonly notificationService = inject(NotificationService);
 
   usuarios: UsuarioResponse[] = [];
   solicitanteId = '';
@@ -103,7 +102,7 @@ export class CrearSolicitud {
     }).subscribe({
       next: () => {
         this.enviando = false;
-        this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Solicitud creada exitosamente' });
+        this.notificationService.success('Solicitud creada exitosamente');
         setTimeout(() => this.router.navigateByUrl('/solicitudes'), 1000);
       },
       error: e => { this.error = e.error?.message || 'Error al crear solicitud'; this.enviando = false; }

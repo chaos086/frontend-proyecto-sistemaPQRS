@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type { PageResponse } from '../models/page-response.model';
 import type {
   SolicitudResponse,
   CrearSolicitudRequest,
@@ -23,6 +24,10 @@ export class SolicitudService {
 
   listar(): Observable<SolicitudResponse[]> {
     return this.http.get<SolicitudResponse[]>(this.apiUrl);
+  }
+
+  listarPaginado(page: number, size: number): Observable<PageResponse<SolicitudResponse>> {
+    return this.http.get<PageResponse<SolicitudResponse>>(`${this.apiUrl}/page?page=${page}&size=${size}`);
   }
 
   obtener(id: string): Observable<SolicitudResponse> {

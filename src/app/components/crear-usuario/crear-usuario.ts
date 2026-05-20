@@ -2,14 +2,13 @@ import { Component, inject } from '@angular/core';
 import { NgIf, NgFor } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { MessageService } from 'primeng/api';
 import { UsuarioService } from '../../services/usuario.service';
+import { NotificationService } from '../../services/notification.service';
 import { ROLES, ROL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-crear-usuario',
   imports: [NgIf, NgFor, FormsModule, RouterLink],
-  providers: [MessageService],
   template: `
     <h2>Nuevo Usuario</h2>
     <form (ngSubmit)="onSubmit()" class="card-form">
@@ -53,7 +52,7 @@ import { ROLES, ROL_LABELS } from '../../models/enums';
 export class CrearUsuario {
   private readonly usuarioService = inject(UsuarioService);
   private readonly router = inject(Router);
-  private readonly messageService = inject(MessageService);
+  private readonly notificationService = inject(NotificationService);
 
   nombre = '';
   email = '';
@@ -80,7 +79,7 @@ export class CrearUsuario {
     this.usuarioService.crear({ nombre: this.nombre, rol: this.rol as any, email: this.email }).subscribe({
       next: () => {
         this.enviando = false;
-        this.messageService.add({ severity: 'success', summary: 'Éxito', detail: 'Usuario creado exitosamente' });
+        this.notificationService.success('Usuario creado exitosamente');
         setTimeout(() => this.router.navigateByUrl('/usuarios'), 1000);
       },
       error: e => { this.error = e.error?.message || 'Error al crear usuario'; this.enviando = false; }

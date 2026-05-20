@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type { PageResponse } from '../models/page-response.model';
 import type { CrearUsuarioRequest, UsuarioResponse } from '../models/usuario.models';
 
 @Injectable({ providedIn: 'root' })
@@ -14,6 +15,10 @@ export class UsuarioService {
 
   listar(): Observable<UsuarioResponse[]> {
     return this.http.get<UsuarioResponse[]>(this.apiUrl);
+  }
+
+  listarPaginado(page: number, size: number): Observable<PageResponse<UsuarioResponse>> {
+    return this.http.get<PageResponse<UsuarioResponse>>(`${this.apiUrl}/page?page=${page}&size=${size}`);
   }
 
   obtener(id: string): Observable<UsuarioResponse> {

@@ -1,17 +1,17 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Paginator } from 'primeng/paginator';
-import { MessageService, ConfirmationService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
+import { NotificationService } from '../../services/notification.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
 import { ROL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-usuario-list',
   imports: [NgFor, NgIf, RouterLink, Paginator],
-  providers: [MessageService],
   template: `
     <div class="page-card">
       <div class="page-header">
@@ -31,7 +31,7 @@ import { ROL_LABELS } from '../../models/enums';
             <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let u of usuariosPaginados">
+            <tr *ngFor="let u of usuarios">
               <td class="td-bold">{{ u.nombre }}</td>
               <td class="td-muted">{{ u.email }}</td>
               <td><span class="badge badge-purple">{{ rolLabel(u.rol) }}</span></td>
@@ -44,7 +44,7 @@ import { ROL_LABELS } from '../../models/enums';
             <tr *ngIf="usuarios.length === 0"><td colspan="5" class="empty-cell">No hay usuarios registrados</td></tr>
           </tbody>
         </table>
-        <p-paginator [first]="first" [rows]="rows" [totalRecords]="usuarios.length" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="paginar($event)" />
+        <p-paginator [first]="first()" [rows]="rows()" [totalRecords]="totalRecords()" [showCurrentPageReport]="true" currentPageReportTemplate="{first} a {last} de {totalRecords}" (onPageChange)="onPageChange($event)" />
       </div>
     </div>
   `,
@@ -77,33 +77,38 @@ import { ROL_LABELS } from '../../models/enums';
 export class UsuarioList implements OnInit {
   private readonly usuarioService = inject(UsuarioService);
   private readonly auth = inject(AuthService);
-  private readonly messageService = inject(MessageService);
+  private readonly notificationService = inject(NotificationService);
   private readonly confirmationService = inject(ConfirmationService);
 
   usuarios: UsuarioResponse[] = [];
   loading = true;
   error = '';
 
-  first = 0;
-  rows = 10;
-
-  get usuariosPaginados(): UsuarioResponse[] {
-    return this.usuarios.slice(this.first, this.first + this.rows);
-  }
-
-  paginar(event: any): void {
-    this.first = event.first;
-    this.rows = event.rows;
-  }
+  readonly first = signal(0);
+  readonly rows = signal(10);
+  readonly totalRecords = signal(0);
 
   ngOnInit(): void { this.cargar(); }
 
   cargar(): void {
     this.loading = true; this.error = '';
-    this.usuarioService.listar().subscribe({
-      next: data => { this.usuarios = data; this.loading = false; },
-      error: () => { this.error = 'Error al cargar usuarios. ¿El backend está corriendo?'; this.loading = false; }
+    const page = this.first() / this.rows();
+    const size = this.rows();
+    this.usuarioService.listarPaginado(page, size).subscribe({
+      next: data => { this.usuarios = data.content; this.totalRecords.set(data.totalElements); this.loading = false; },
+      error: () => {
+        this.usuarioService.listar().subscribe({
+          next: data => { this.usuarios = data; this.totalRecords.set(data.length); this.loading = false; },
+          error: () => { this.error = 'Error al cargar usuarios. \u00BFEl backend est\u00E1 corriendo?'; this.loading = false; }
+        });
+      }
     });
+  }
+
+  onPageChange(event: any): void {
+    this.first.set(event.first);
+    this.rows.set(event.rows);
+    this.cargar();
   }
 
   rolLabel(rol: string): string { return ROL_LABELS[rol as keyof typeof ROL_LABELS] || rol; }
@@ -111,23 +116,23 @@ export class UsuarioList implements OnInit {
 
   activar(u: UsuarioResponse): void {
     this.usuarioService.activar(u.id).subscribe({
-      next: () => { this.messageService.add({ severity: 'success', summary: 'Éxito', detail: `Usuario ${u.nombre} activado` }); this.cargar(); },
-      error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo activar el usuario' })
+      next: () => { this.notificationService.success(`Usuario ${u.nombre} activado`); this.cargar(); },
+      error: () => this.notificationService.error('No se pudo activar el usuario')
     });
   }
 
   confirmarDesactivar(u: UsuarioResponse): void {
     this.confirmationService.confirm({
-      message: `¿Está seguro de desactivar al usuario ${u.nombre}?`,
-      header: 'Confirmar desactivación',
+      message: `\u00BFEst\u00E1 seguro de desactivar al usuario ${u.nombre}?`,
+      header: 'Confirmar desactivaci\u00F3n',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Sí, desactivar',
+      acceptLabel: 'S\u00ED, desactivar',
       rejectLabel: 'Cancelar',
       acceptButtonStyleClass: 'p-button-danger',
       accept: () => {
         this.usuarioService.desactivar(u.id).subscribe({
-          next: () => { this.messageService.add({ severity: 'success', summary: 'Éxito', detail: `Usuario ${u.nombre} desactivado` }); this.cargar(); },
-          error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo desactivar el usuario' })
+          next: () => { this.notificationService.success(`Usuario ${u.nombre} desactivado`); this.cargar(); },
+          error: () => this.notificationService.error('No se pudo desactivar el usuario')
         });
       }
     });
