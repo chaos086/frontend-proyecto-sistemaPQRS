@@ -1,12 +1,13 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { NgFor, NgIf, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
 import type { SolicitudResponse } from '../../models/solicitud.models';
 import type { UsuarioResponse } from '../../models/usuario.models';
+import { ESTADOS_SOLICITUD, TIPOS_SOLICITUD, TIPO_LABELS, PRIORIDADES, PRIORIDAD_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-solicitud-list',
@@ -18,11 +19,7 @@ import type { UsuarioResponse } from '../../models/usuario.models';
         <span class="count" *ngIf="!loading">{{ solicitudes.length }} solicitud(es)</span>
         <select [(ngModel)]="filtroEstado" (change)="cargar()">
           <option value="">Todos los estados</option>
-          <option value="REGISTRADA">Registrada</option>
-          <option value="CLASIFICADA">Clasificada</option>
-          <option value="EN_ATENCION">En Atención</option>
-          <option value="ATENDIDA">Atendida</option>
-          <option value="CERRADA">Cerrada</option>
+          <option *ngFor="let e of estados" [value]="e">{{ e }}</option>
         </select>
       </div>
     </div>
@@ -75,11 +72,7 @@ import type { UsuarioResponse } from '../../models/usuario.models';
             <label>Tipo</label>
             <select [(ngModel)]="accionData.tipo">
               <option value="">Seleccione...</option>
-              <option value="PETICION">Petición</option>
-              <option value="QUEJA">Queja</option>
-              <option value="RECLAMO">Reclamo</option>
-              <option value="SUGERENCIA">Sugerencia</option>
-              <option value="FELICITACION">Felicitación</option>
+              <option *ngFor="let t of tipos" [value]="t">{{ labelsTipo[t] }}</option>
             </select>
           </div>
           <div class="modal-actions">
@@ -95,9 +88,7 @@ import type { UsuarioResponse } from '../../models/usuario.models';
             <label>Prioridad</label>
             <select [(ngModel)]="accionData.prioridad">
               <option value="">Seleccione...</option>
-              <option value="BAJA">Baja</option>
-              <option value="MEDIA">Media</option>
-              <option value="ALTA">Alta</option>
+              <option *ngFor="let p of prioridades" [value]="p">{{ labelsPrioridad[p] }}</option>
             </select>
           </div>
           <div class="field">
@@ -256,6 +247,12 @@ export class SolicitudList implements OnInit {
   cargandoAccion = false;
   errorAccion = '';
   detalle: SolicitudResponse | null = null;
+
+  estados = ESTADOS_SOLICITUD;
+  tipos = TIPOS_SOLICITUD;
+  labelsTipo = TIPO_LABELS;
+  prioridades = PRIORIDADES;
+  labelsPrioridad = PRIORIDAD_LABELS;
 
   ngOnInit(): void {
     this.cargar();

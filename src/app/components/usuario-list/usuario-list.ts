@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
+import { ROL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-usuario-list',
@@ -26,7 +27,7 @@ import type { UsuarioResponse } from '../../models/usuario.models';
           <tr *ngFor="let u of usuarios">
             <td>{{ u.nombre }}</td>
             <td>{{ u.email }}</td>
-            <td>{{ u.rol }}</td>
+            <td>{{ rolLabel(u.rol) }}</td>
             <td><span class="badge" [class]="u.estado">{{ u.estado }}</span></td>
             <td class="actions-cell">
               <button *ngIf="u.estado === 'ACTIVO' && esCoordinador()" (click)="desactivar(u)" class="btn-sm btn-danger-outline">Desactivar</button>
@@ -68,6 +69,7 @@ export class UsuarioList implements OnInit {
   usuarios: UsuarioResponse[] = [];
   loading = true;
   error = '';
+  labelsRol = ROL_LABELS;
 
   ngOnInit(): void {
     this.cargar();
@@ -81,6 +83,8 @@ export class UsuarioList implements OnInit {
       error: () => { this.error = 'Error al cargar usuarios. ¿El backend está corriendo?'; this.loading = false; }
     });
   }
+
+  rolLabel(rol: string): string { return ROL_LABELS[rol as keyof typeof ROL_LABELS] || rol; }
 
   esCoordinador(): boolean {
     return this.auth.hasRole('ROLE_COORDINADOR');

@@ -1,12 +1,13 @@
 import { Component, inject } from '@angular/core';
-import { NgIf } from '@angular/common';
+import { NgIf, NgFor } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { UsuarioService } from '../../services/usuario.service';
+import { ROLES, ROL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-crear-usuario',
-  imports: [NgIf, FormsModule, RouterLink],
+  imports: [NgIf, NgFor, FormsModule, RouterLink],
   template: `
     <h2>Nuevo Usuario</h2>
     <form (ngSubmit)="onSubmit()" class="card-form">
@@ -23,10 +24,7 @@ import { UsuarioService } from '../../services/usuario.service';
       <div class="field">
         <label for="rol">Rol</label>
         <select id="rol" [(ngModel)]="rol" name="rol">
-          <option value="ESTUDIANTE">Estudiante</option>
-          <option value="PROFESOR">Profesor</option>
-          <option value="ADMINISTRATIVO">Administrativo</option>
-          <option value="COORDINADOR">Coordinador</option>
+          <option *ngFor="let r of roles" [value]="r">{{ labelsRol[r] }}</option>
         </select>
       </div>
       <div class="form-actions">
@@ -58,6 +56,8 @@ export class CrearUsuario {
   nombre = '';
   email = '';
   rol = 'ESTUDIANTE';
+  roles = ROLES;
+  labelsRol = ROL_LABELS;
   enviando = false;
   error = '';
   exito = false;

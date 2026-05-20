@@ -5,6 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import type { UsuarioResponse } from '../../models/usuario.models';
+import { CANALES_ORIGEN, CANAL_LABELS } from '../../models/enums';
 
 @Component({
   selector: 'app-crear-solicitud',
@@ -28,11 +29,7 @@ import type { UsuarioResponse } from '../../models/usuario.models';
       <div class="field">
         <label for="canalOrigen">Canal de origen</label>
         <select id="canalOrigen" [(ngModel)]="canalOrigen" name="canalOrigen">
-          <option value="PRESENCIAL">Presencial</option>
-          <option value="TELEFONICO">Telefónico</option>
-          <option value="CORREO_ELECTRONICO">Correo Electrónico</option>
-          <option value="APLICACION_WEB">Aplicación Web</option>
-          <option value="APLICACION_MOVIL">Aplicación Móvil</option>
+          <option *ngFor="let c of canales" [value]="c">{{ labelsCanal[c] }}</option>
         </select>
       </div>
       <div class="field">
@@ -72,6 +69,8 @@ export class CrearSolicitud {
   solicitanteId = '';
   nombreSolicitante = '';
   canalOrigen = 'PRESENCIAL';
+  canales = CANALES_ORIGEN;
+  labelsCanal = CANAL_LABELS;
   descripcion = '';
   enviando = false;
   error = '';
