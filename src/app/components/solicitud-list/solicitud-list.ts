@@ -1,6 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { NgFor, NgIf, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SolicitudService } from '../../services/solicitud.service';
 import { UsuarioService } from '../../services/usuario.service';
 import { AuthService } from '../../services/auth.service';
@@ -13,63 +14,67 @@ import type { UsuarioResponse } from '../../models/usuario.models';
   template: `
     <div class="header-bar">
       <h2>Solicitudes</h2>
-      <select [(ngModel)]="filtroEstado" (change)="cargar()">
-        <option value="">Todos los estados</option>
-        <option value="REGISTRADA">Registrada</option>
-        <option value="CLASIFICADA">Clasificada</option>
-        <option value="EN_ATENCION">En Atención</option>
-        <option value="ATENDIDA">Atendida</option>
-        <option value="CERRADA">Cerrada</option>
-      </select>
+      <div class="header-right">
+        <span class="count" *ngIf="!loading">{{ solicitudes.length }} solicitud(es)</span>
+        <select [(ngModel)]="filtroEstado" (change)="cargar()">
+          <option value="">Todos los estados</option>
+          <option value="REGISTRADA">Registrada</option>
+          <option value="CLASIFICADA">Clasificada</option>
+          <option value="EN_ATENCION">En Atención</option>
+          <option value="ATENDIDA">Atendida</option>
+          <option value="CERRADA">Cerrada</option>
+        </select>
+      </div>
     </div>
 
-    <p class="loading" *ngIf="loading">Cargando...</p>
+    <p class="loading" *ngIf="loading">Cargando solicitudes...</p>
+    <p class="error" *ngIf="error">{{ error }}</p>
 
-    <table *ngIf="!loading">
-      <thead>
-        <tr>
-          <th>Solicitante</th>
-          <th>Estado</th>
-          <th>Tipo</th>
-          <th>Prioridad</th>
-          <th>Responsable</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let s of solicitudes">
-          <td>{{ s.nombreSolicitante }}</td>
-          <td><span class="badge" [class]="s.estado">{{ s.estado }}</span></td>
-          <td>{{ s.tipoSolicitud || '-' }}</td>
-          <td>{{ s.prioridad || '-' }}</td>
-          <td>{{ s.nombreResponsable || '-' }}</td>
-          <td class="actions">
-            <button *ngIf="s.estado === 'REGISTRADA' && esCoordinador()" (click)="abrirForm(s, 'clasificar')">Clasificar</button>
-            <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'priorizar')">Priorizar</button>
-            <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'asignar'); cargarProfesores()">Asignar</button>
-            <button *ngIf="s.estado === 'EN_ATENCION' && esResponsable(s)" (click)="abrirForm(s, 'atender')">Atender</button>
-            <button *ngIf="(s.estado === 'EN_ATENCION' || s.estado === 'ATENDIDA') && esResponsable(s)" (click)="abrirForm(s, 'cerrar')">Cerrar</button>
-            <button (click)="verDetalle(s)" class="btn-detail">Detalle</button>
-          </td>
-        </tr>
-        <tr *ngIf="solicitudes.length === 0">
-          <td colspan="6" class="empty">No hay solicitudes</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p *ngIf="error" class="error">{{ error }}</p>
+    <div class="table-wrapper" *ngIf="!loading && !error">
+      <table>
+        <thead>
+          <tr>
+            <th>Solicitante</th>
+            <th>Estado</th>
+            <th>Tipo</th>
+            <th>Prioridad</th>
+            <th>Responsable</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of solicitudes">
+            <td>{{ s.nombreSolicitante }}</td>
+            <td><span class="badge" [class]="s.estado">{{ s.estado }}</span></td>
+            <td>{{ s.tipoSolicitud || '-' }}</td>
+            <td>{{ s.prioridad || '-' }}</td>
+            <td>{{ s.nombreResponsable || '-' }}</td>
+            <td class="actions-cell">
+              <button *ngIf="s.estado === 'REGISTRADA' && esCoordinador()" (click)="abrirForm(s, 'clasificar')" class="btn-sm">Clasificar</button>
+              <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'priorizar')" class="btn-sm">Priorizar</button>
+              <button *ngIf="s.estado === 'CLASIFICADA' && esCoordinador()" (click)="abrirForm(s, 'asignar'); cargarProfesores()" class="btn-sm">Asignar</button>
+              <button *ngIf="s.estado === 'EN_ATENCION' && esResponsable(s)" (click)="abrirForm(s, 'atender')" class="btn-sm">Atender</button>
+              <button *ngIf="(s.estado === 'EN_ATENCION' || s.estado === 'ATENDIDA') && esResponsable(s)" (click)="abrirForm(s, 'cerrar')" class="btn-sm">Cerrar</button>
+              <button (click)="verDetalle(s)" class="btn-sm btn-outline">Detalle</button>
+            </td>
+          </tr>
+          <tr *ngIf="solicitudes.length === 0">
+            <td colspan="6" class="empty">No hay solicitudes registradas</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <!-- Modal de acción -->
     <div class="modal-overlay" *ngIf="formAccion" (click)="cerrarForm()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h3>{{ tituloAccion }}</h3>
 
-        <!-- Clasificar -->
         <div *ngIf="formAccion === 'clasificar'">
           <div class="field">
             <label>Tipo</label>
             <select [(ngModel)]="accionData.tipo">
+              <option value="">Seleccione...</option>
               <option value="PETICION">Petición</option>
               <option value="QUEJA">Queja</option>
               <option value="RECLAMO">Reclamo</option>
@@ -77,14 +82,19 @@ import type { UsuarioResponse } from '../../models/usuario.models';
               <option value="FELICITACION">Felicitación</option>
             </select>
           </div>
-          <button (click)="ejecutarClasificar()" [disabled]="cargandoAccion">{{ cargandoAccion ? '...' : 'Guardar' }}</button>
+          <div class="modal-actions">
+            <button (click)="ejecutarClasificar()" [disabled]="cargandoAccion || !accionData.tipo" class="btn-primary">
+              {{ cargandoAccion ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button (click)="cerrarForm()" class="btn-cancel">Cancelar</button>
+          </div>
         </div>
 
-        <!-- Priorizar -->
         <div *ngIf="formAccion === 'priorizar'">
           <div class="field">
             <label>Prioridad</label>
             <select [(ngModel)]="accionData.prioridad">
+              <option value="">Seleccione...</option>
               <option value="BAJA">Baja</option>
               <option value="MEDIA">Media</option>
               <option value="ALTA">Alta</option>
@@ -94,10 +104,14 @@ import type { UsuarioResponse } from '../../models/usuario.models';
             <label>Justificación</label>
             <textarea [(ngModel)]="accionData.justificacion" rows="3" placeholder="Motivo de la prioridad"></textarea>
           </div>
-          <button (click)="ejecutarPriorizar()" [disabled]="cargandoAccion">{{ cargandoAccion ? '...' : 'Guardar' }}</button>
+          <div class="modal-actions">
+            <button (click)="ejecutarPriorizar()" [disabled]="cargandoAccion || !accionData.prioridad" class="btn-primary">
+              {{ cargandoAccion ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button (click)="cerrarForm()" class="btn-cancel">Cancelar</button>
+          </div>
         </div>
 
-        <!-- Asignar Responsable -->
         <div *ngIf="formAccion === 'asignar'">
           <div class="field">
             <label>Profesor responsable</label>
@@ -106,28 +120,40 @@ import type { UsuarioResponse } from '../../models/usuario.models';
               <option *ngFor="let p of profesores" [value]="p.id">{{ p.nombre }} ({{ p.email }})</option>
             </select>
           </div>
-          <button (click)="ejecutarAsignar()" [disabled]="cargandoAccion || !accionData.responsableId">{{ cargandoAccion ? '...' : 'Guardar' }}</button>
+          <div class="modal-actions">
+            <button (click)="ejecutarAsignar()" [disabled]="cargandoAccion || !accionData.responsableId" class="btn-primary">
+              {{ cargandoAccion ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button (click)="cerrarForm()" class="btn-cancel">Cancelar</button>
+          </div>
         </div>
 
-        <!-- Atender -->
         <div *ngIf="formAccion === 'atender'">
           <div class="field">
             <label>Observación</label>
             <textarea [(ngModel)]="accionData.observacion" rows="3" placeholder="Opcional"></textarea>
           </div>
-          <button (click)="ejecutarAtender()" [disabled]="cargandoAccion">{{ cargandoAccion ? '...' : 'Guardar' }}</button>
+          <div class="modal-actions">
+            <button (click)="ejecutarAtender()" [disabled]="cargandoAccion" class="btn-primary">
+              {{ cargandoAccion ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button (click)="cerrarForm()" class="btn-cancel">Cancelar</button>
+          </div>
         </div>
 
-        <!-- Cerrar -->
         <div *ngIf="formAccion === 'cerrar'">
           <div class="field">
             <label>Observación de cierre</label>
             <textarea [(ngModel)]="accionData.observacionCierre" rows="3" placeholder="Obligatorio"></textarea>
           </div>
-          <button (click)="ejecutarCerrar()" [disabled]="cargandoAccion || !accionData.observacionCierre">{{ cargandoAccion ? '...' : 'Guardar' }}</button>
+          <div class="modal-actions">
+            <button (click)="ejecutarCerrar()" [disabled]="cargandoAccion || !accionData.observacionCierre" class="btn-primary">
+              {{ cargandoAccion ? 'Guardando...' : 'Guardar' }}
+            </button>
+            <button (click)="cerrarForm()" class="btn-cancel">Cancelar</button>
+          </div>
         </div>
 
-        <button class="btn-cancel" (click)="cerrarForm()">Cancelar</button>
         <p class="action-error" *ngIf="errorAccion">{{ errorAccion }}</p>
       </div>
     </div>
@@ -139,14 +165,14 @@ import type { UsuarioResponse } from '../../models/usuario.models';
         <div class="detail-grid">
           <div><strong>ID:</strong> {{ detalle.id }}</div>
           <div><strong>Solicitante:</strong> {{ detalle.nombreSolicitante }}</div>
-          <div><strong>Estado:</strong> {{ detalle.estado }}</div>
+          <div><strong>Estado:</strong> <span class="badge" [class]="detalle.estado">{{ detalle.estado }}</span></div>
           <div><strong>Tipo:</strong> {{ detalle.tipoSolicitud || '-' }}</div>
           <div><strong>Prioridad:</strong> {{ detalle.prioridad || '-' }}</div>
           <div><strong>Responsable:</strong> {{ detalle.nombreResponsable || '-' }}</div>
           <div><strong>Canal:</strong> {{ detalle.canalOrigen }}</div>
           <div><strong>Fecha:</strong> {{ detalle.fechaRegistro | date:'dd/MM/yyyy HH:mm' }}</div>
-          <div class="full-width"><strong>Descripción:</strong> {{ detalle.descripcion }}</div>
-          <div class="full-width" *ngIf="detalle.justificacionPrioridad"><strong>Justificación:</strong> {{ detalle.justificacionPrioridad }}</div>
+          <div class="full-width"><strong>Descripción:</strong><br>{{ detalle.descripcion }}</div>
+          <div class="full-width" *ngIf="detalle.justificacionPrioridad"><strong>Justificación:</strong><br>{{ detalle.justificacionPrioridad }}</div>
         </div>
         <h4>Historial</h4>
         <table class="history-table">
@@ -158,55 +184,65 @@ import type { UsuarioResponse } from '../../models/usuario.models';
               <td>{{ h.nombreUsuario }}</td>
               <td>{{ h.observacion }}</td>
             </tr>
+            <tr *ngIf="detalle.historial.length === 0"><td colspan="4" class="empty">Sin historial</td></tr>
           </tbody>
         </table>
-        <button class="btn-cancel" (click)="detalle = null">Cerrar</button>
+        <div class="modal-actions">
+          <button (click)="detalle = null" class="btn-cancel">Cerrar</button>
+        </div>
       </div>
     </div>
   `,
   styles: [`
     .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .header-bar select { padding: .4rem; border-radius: 4px; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
-    th, td { padding: .6rem; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: #f5f5f5; font-weight: 600; }
-    .badge { padding: .2rem .5rem; border-radius: 4px; font-size: .8rem; }
+    .header-right { display: flex; align-items: center; gap: .8rem; }
+    .count { color: #888; font-size: .85rem; }
+    .header-bar select { padding: .4rem .6rem; border-radius: 6px; border: 1px solid #ddd; font-size: .9rem; }
+    .table-wrapper { background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .7rem .8rem; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
+    th { background: #fafafa; font-weight: 600; color: #555; font-size: .8rem; text-transform: uppercase; letter-spacing: .5px; }
+    tr:last-child td { border-bottom: none; }
+    .badge { padding: .2rem .6rem; border-radius: 12px; font-size: .8rem; font-weight: 500; }
     .REGISTRADA { background: #e3f2fd; color: #1565c0; }
     .CLASIFICADA { background: #f3e5f5; color: #7b1fa2; }
     .EN_ATENCION { background: #fff3e0; color: #e65100; }
     .ATENDIDA { background: #e8f5e9; color: #2e7d32; }
     .CERRADA { background: #eceff1; color: #546e7a; }
-    .actions { display: flex; gap: .3rem; flex-wrap: wrap; }
-    .actions button { padding: .25rem .5rem; border: 1px solid #1976d2; background: white; color: #1976d2; border-radius: 3px; cursor: pointer; font-size: .8rem; }
-    .actions button:hover { background: #1976d2; color: white; }
-    .btn-detail { border-color: #555 !important; color: #555 !important; }
-    .btn-detail:hover { background: #555 !important; color: white !important; }
-    .empty { text-align: center; color: #999; padding: 2rem; }
-    .loading, .error { text-align: center; padding: 1rem; }
-    .error { color: #d32f2f; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal { background: white; padding: 1.5rem; border-radius: 8px; min-width: 380px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+    .actions-cell { display: flex; gap: .3rem; flex-wrap: wrap; }
+    .btn-sm { padding: .3rem .6rem; border: 1px solid #1976d2; background: #1976d2; color: white; border-radius: 4px; cursor: pointer; font-size: .8rem; transition: opacity .2s; }
+    .btn-sm:hover { opacity: .85; }
+    .btn-outline { background: white; color: #555; border-color: #bbb; }
+    .btn-outline:hover { background: #f5f5f5; opacity: 1; }
+    .empty { text-align: center; color: #999; padding: 2rem; font-style: italic; }
+    .loading, .error { text-align: center; padding: 2rem; }
+    .error { color: #d32f2f; background: #fff5f5; border-radius: 8px; border: 1px solid #ffcdd2; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: white; padding: 1.5rem; border-radius: 12px; min-width: 380px; max-width: 600px; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
     .modal-wide { min-width: 600px; }
-    .modal h3 { margin: 0 0 1rem; }
-    .field { margin-bottom: .8rem; }
-    .field label { display: block; margin-bottom: .3rem; font-weight: 600; }
-    .field select, .field textarea, .field input { width: 100%; padding: .5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    button { padding: .5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-size: .9rem; }
-    button[disabled] { opacity: .5; cursor: not-allowed; }
-    button:not(.btn-cancel) { background: #1976d2; color: white; margin-right: .5rem; }
-    .btn-cancel { background: #e0e0e0; color: #333; }
-    .action-error { color: #d32f2f; margin-top: .5rem; }
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1rem; }
+    .modal h3 { margin: 0 0 1rem; font-size: 1.1rem; }
+    .modal h4 { margin: 1rem 0 .5rem; font-size: .95rem; color: #555; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; margin-bottom: .3rem; font-weight: 600; color: #555; font-size: .9rem; }
+    .field select, .field textarea { width: 100%; padding: .5rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: .9rem; }
+    .field textarea { resize: vertical; }
+    .modal-actions { display: flex; gap: .5rem; margin-top: 1rem; }
+    .btn-primary { padding: .5rem 1.2rem; background: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-cancel { padding: .5rem 1.2rem; background: #e0e0e0; color: #333; border: none; border-radius: 6px; cursor: pointer; font-size: .9rem; }
+    .action-error { color: #d32f2f; margin-top: .8rem; font-size: .9rem; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .5rem; font-size: .9rem; }
     .full-width { grid-column: 1 / -1; }
-    .history-table { width: 100%; border-collapse: collapse; font-size: .85rem; margin-bottom: 1rem; }
-    .history-table th { background: #f5f5f5; padding: .4rem; }
-    .history-table td { padding: .4rem; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .history-table th { background: #fafafa; padding: .4rem .6rem; text-align: left; font-size: .8rem; color: #555; }
+    .history-table td { padding: .4rem .6rem; border-bottom: 1px solid #f0f0f0; }
   `]
 })
-export class SolicitudList {
+export class SolicitudList implements OnInit {
   private readonly solicitudService = inject(SolicitudService);
   private readonly usuarioService = inject(UsuarioService);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
   solicitudes: SolicitudResponse[] = [];
   profesores: UsuarioResponse[] = [];
@@ -221,8 +257,9 @@ export class SolicitudList {
   errorAccion = '';
   detalle: SolicitudResponse | null = null;
 
-  constructor() {
+  ngOnInit(): void {
     this.cargar();
+    this.route.paramMap.subscribe(() => this.cargar());
   }
 
   esCoordinador(): boolean {
@@ -241,7 +278,7 @@ export class SolicitudList {
       : this.solicitudService.listar();
     obs.subscribe({
       next: data => { this.solicitudes = data; this.loading = false; },
-      error: () => { this.error = 'Error al cargar solicitudes'; this.loading = false; }
+      error: () => { this.error = 'Error al cargar solicitudes. ¿El backend está corriendo?'; this.loading = false; }
     });
   }
 
@@ -267,59 +304,49 @@ export class SolicitudList {
 
   get tituloAccion(): string {
     const map: Record<string, string> = {
-      clasificar: 'Clasificar Solicitud',
-      priorizar: 'Priorizar Solicitud',
-      asignar: 'Asignar Responsable',
-      atender: 'Atender Solicitud',
-      cerrar: 'Cerrar Solicitud'
+      clasificar: 'Clasificar Solicitud', priorizar: 'Priorizar Solicitud',
+      asignar: 'Asignar Responsable', atender: 'Atender Solicitud', cerrar: 'Cerrar Solicitud'
     };
     return map[this.formAccion ?? ''] ?? '';
   }
 
+  private accionOk(): void { this.cerrarForm(); this.cargar(); }
+  private accionError(e: any): void { this.errorAccion = e.error?.message || 'Error en la operación'; this.cargandoAccion = false; }
+
   ejecutarClasificar(): void {
-    const s = this.solicitudSeleccionada!;
     this.cargandoAccion = true;
-    this.solicitudService.clasificar(s.id, {
-      tipo: this.accionData.tipo,
-      coordinadorId: this.auth.getUserId()!
-    }).subscribe({ next: () => { this.cerrarForm(); this.cargar(); }, error: e => { this.errorAccion = e.error?.message || 'Error'; this.cargandoAccion = false; } });
+    this.solicitudService.clasificar(this.solicitudSeleccionada!.id, {
+      tipo: this.accionData.tipo, coordinadorId: this.auth.getUserId()!
+    }).subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
   }
 
   ejecutarPriorizar(): void {
-    const s = this.solicitudSeleccionada!;
     this.cargandoAccion = true;
-    this.solicitudService.priorizar(s.id, {
-      prioridad: this.accionData.prioridad,
-      justificacion: this.accionData.justificacion,
+    this.solicitudService.priorizar(this.solicitudSeleccionada!.id, {
+      prioridad: this.accionData.prioridad, justificacion: this.accionData.justificacion,
       coordinadorId: this.auth.getUserId()!
-    }).subscribe({ next: () => { this.cerrarForm(); this.cargar(); }, error: e => { this.errorAccion = e.error?.message || 'Error'; this.cargandoAccion = false; } });
+    }).subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
   }
 
   ejecutarAsignar(): void {
-    const s = this.solicitudSeleccionada!;
     this.cargandoAccion = true;
-    this.solicitudService.asignarResponsable(s.id, {
-      responsableId: this.accionData.responsableId,
-      coordinadorId: this.auth.getUserId()!
-    }).subscribe({ next: () => { this.cerrarForm(); this.cargar(); }, error: e => { this.errorAccion = e.error?.message || 'Error'; this.cargandoAccion = false; } });
+    this.solicitudService.asignarResponsable(this.solicitudSeleccionada!.id, {
+      responsableId: this.accionData.responsableId, coordinadorId: this.auth.getUserId()!
+    }).subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
   }
 
   ejecutarAtender(): void {
-    const s = this.solicitudSeleccionada!;
     this.cargandoAccion = true;
-    this.solicitudService.atender(s.id, {
-      responsableId: this.auth.getUserId()!,
-      observacion: this.accionData.observacion
-    }).subscribe({ next: () => { this.cerrarForm(); this.cargar(); }, error: e => { this.errorAccion = e.error?.message || 'Error'; this.cargandoAccion = false; } });
+    this.solicitudService.atender(this.solicitudSeleccionada!.id, {
+      responsableId: this.auth.getUserId()!, observacion: this.accionData.observacion
+    }).subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
   }
 
   ejecutarCerrar(): void {
-    const s = this.solicitudSeleccionada!;
     this.cargandoAccion = true;
-    this.solicitudService.cerrar(s.id, {
-      responsableId: this.auth.getUserId()!,
-      observacionCierre: this.accionData.observacionCierre
-    }).subscribe({ next: () => { this.cerrarForm(); this.cargar(); }, error: e => { this.errorAccion = e.error?.message || 'Error'; this.cargandoAccion = false; } });
+    this.solicitudService.cerrar(this.solicitudSeleccionada!.id, {
+      responsableId: this.auth.getUserId()!, observacionCierre: this.accionData.observacionCierre
+    }).subscribe({ next: () => this.accionOk(), error: e => this.accionError(e) });
   }
 
   verDetalle(s: SolicitudResponse): void {
